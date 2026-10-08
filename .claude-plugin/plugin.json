@@ -1,0 +1,1 @@
+{ "name": "cc-usage-band", "version": "0.1.0", "description": "Band above the prompt: 5h/7d rate limits, context window fill, last-turn cache hit rate", "types": "./types/index.d.ts" }

@@ -1,0 +1,5 @@
+{
+  "name": "cc-usage-band",
+  "owner": { "name": "kathy330" },
+  "plugins": [{ "name": "cc-usage-band", "source": "./" }]
+}
