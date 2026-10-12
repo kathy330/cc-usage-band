@@ -38,6 +38,8 @@ const AMBER = '#d4893a'
 const RED = '#e0585b'
 const VIOLET = '#7f7ae0'
 const GREEN = '#3daa6e'
+// The pace tick: a soft slate blue, present but quieter than the fill.
+const TICK = '#7d93ad'
 
 /** Usage colour: calm under 50%, amber to 80%, red above. */
 export const tone = (pct: number): string => (pct >= 80 ? RED : pct >= 50 ? AMBER : TEAL)
@@ -121,13 +123,24 @@ export const register: Register = on => {
       const pct = Math.round(l.percentUsed)
       const n = filled(pct, 8)
       const left = fmtLeft(l.resetsAt, now)
-      const color = paceTone(pct, elapsedPct(l.kind, l.resetsAt, now))
+      const elapsed = elapsedPct(l.kind, l.resetsAt, now)
+      const color = paceTone(pct, elapsed)
+      // Pace tick: a thin muted line between cells where even use would be by now. It sits
+      // between cells rather than over one, so the fill keeps its true length.
+      const at = elapsed === null ? -1 : Math.round((elapsed / 100) * 8)
+      const bar = (from: number, to: number) => [
+        <Text key={`f${from}`} color={color}>
+          {'━'.repeat(Math.max(0, Math.min(n, to) - from))}
+        </Text>,
+        <Text key={`e${from}`} dimColor>
+          {'━'.repeat(Math.max(0, to - Math.max(n, from)))}
+        </Text>,
+      ]
       if (parts.length) parts.push(sep(`s-${l.kind}`))
       parts.push(
         <Text key={l.kind}>
           <Text dimColor>{LABEL[l.kind] ?? l.kind} </Text>
-          <Text color={color}>{'━'.repeat(n)}</Text>
-          <Text dimColor>{'━'.repeat(8 - n)}</Text>
+          {at < 0 ? bar(0, 8) : [...bar(0, at), <Text key="tick" color={TICK}>{'┊'}</Text>, ...bar(at, 8)]}
           <Text color={color} bold>
             {' '}
             {pct}%
