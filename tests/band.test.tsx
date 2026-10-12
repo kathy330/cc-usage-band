@@ -16,22 +16,22 @@ const BAND = {
 
 describe('pace', () => {
   test('colour follows where usage lands at reset', async () => {
-    const now = Date.parse('2026-10-12T17:07:00+11:00')
-    // 5h window resetting 20:30: 1h37m in, about 32% through
+    const now = Date.parse('2026-10-12T17:12:00+11:00')
+    const RED = paceTone(100, 100), AMBER = paceTone(60, 100), GREEN = paceTone(10, 100)
+    expect(new Set([RED, AMBER, GREEN]).size).toBe(3)
+    // 5h window resetting 20:30, 33% used about a third of the way in: on pace to ~97% → red
     const e5 = elapsedPct('five_hour', '2026-10-12T20:30:00+11:00', now)!
-    expect(Math.round(e5)).toBe(32)
-    expect(paceTone(33, e5)).toBe(paceTone(95, 50)) // over pace: red
-    expect(paceTone(20, e5)).not.toBe(paceTone(33, e5)) // well under pace: green
-    expect(paceTone(29, e5)).not.toBe(paceTone(20, e5)) // close to pace: amber
-    // weekly window resetting in 2h: 73% used is under pace
+    expect(paceTone(33, e5)).toBe(RED)
+    expect(paceTone(20, e5)).toBe(AMBER) // ~60% at reset
+    expect(paceTone(12, e5)).toBe(GREEN) // ~35% at reset
+    // weekly window with 2h left: 72% used lands at ~73% → amber
     const e7 = elapsedPct('seven_day', '2026-10-12T19:00:00+11:00', now)!
-    expect(paceTone(73, e7)).toBe(paceTone(20, e5))
-    // 90% used is red whatever the pace
-    expect(paceTone(90, 99)).toBe(paceTone(33, e5))
-    // unknown window or the first 10% of it: plain thresholds
+    expect(paceTone(72, e7)).toBe(AMBER)
+    // unknown window or the first 10% of it: the share used, same cut-offs
     expect(elapsedPct('spend_limit', '2026-10-12T19:00:00Z', now)).toBe(null)
-    expect(paceTone(30, null)).toBe(tone(30))
-    expect(paceTone(30, 5)).toBe(tone(30))
+    expect(paceTone(30, null)).toBe(GREEN)
+    expect(paceTone(30, 5)).toBe(GREEN)
+    expect(paceTone(86, null)).toBe(RED)
   })
 })
 

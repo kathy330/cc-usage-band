@@ -55,14 +55,12 @@ export const elapsedPct = (kind: string, resetsAt: string | undefined, now: numb
 
 /**
  * Pace colour: where usage will land at reset if it keeps this rate.
- * Green below 85%, amber 85–100%, red once it would run out (or 90% is already used).
- * In the first 10% of a window the rate says little, so fall back to the plain tone.
+ * Green below 50%, amber 50–85%, red from 85%.
+ * In the first 10% of a window the rate says little, so the share used is coloured the same way instead.
  */
 export const paceTone = (pct: number, elapsed: number | null): string => {
-  if (pct >= 90) return RED
-  if (elapsed === null || elapsed < 10) return tone(pct)
-  const projected = (pct / elapsed) * 100
-  return projected >= 100 ? RED : projected >= 85 ? AMBER : GREEN
+  const projected = elapsed === null || elapsed < 10 ? pct : Math.max(pct, (pct / elapsed) * 100)
+  return projected >= 85 ? RED : projected >= 50 ? AMBER : GREEN
 }
 
 /** Cache hit colour: high is good. */
@@ -123,30 +121,13 @@ export const register: Register = on => {
       const pct = Math.round(l.percentUsed)
       const n = filled(pct, 8)
       const left = fmtLeft(l.resetsAt, now)
-      const elapsed = elapsedPct(l.kind, l.resetsAt, now)
-      const color = paceTone(pct, elapsed)
-      // The pace mark: the cell where even use would be by now.
-      const mark = elapsed === null ? -1 : Math.min(7, Math.floor((elapsed / 100) * 8))
-      const cells = Array.from({ length: 8 }, (_, i) =>
-        i === mark ? (
-          <Text key={i} bold>
-            {'┃'}
-          </Text>
-        ) : i < n ? (
-          <Text key={i} color={color}>
-            {'━'}
-          </Text>
-        ) : (
-          <Text key={i} dimColor>
-            {'━'}
-          </Text>
-        ),
-      )
+      const color = paceTone(pct, elapsedPct(l.kind, l.resetsAt, now))
       if (parts.length) parts.push(sep(`s-${l.kind}`))
       parts.push(
         <Text key={l.kind}>
           <Text dimColor>{LABEL[l.kind] ?? l.kind} </Text>
-          {cells}
+          <Text color={color}>{'━'.repeat(n)}</Text>
+          <Text dimColor>{'━'.repeat(8 - n)}</Text>
           <Text color={color} bold>
             {' '}
             {pct}%
