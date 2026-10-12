@@ -14,12 +14,13 @@ Numbers come from Claude Code's own usage events; nothing is estimated. Works in
 
 ## Install
 
-In a Claude Code terminal session:
+In a terminal:
 
 ```
-/plugin install cc-usage-band --marketplace kathy330/cc-usage-band
+claude plugin marketplace add kathy330/cc-usage-band
+claude plugin install cc-usage-band@cc-usage-band
 ```
 
-Answer `y` to add the marketplace, then press Enter for the user scope.
+Then start a new Claude Code session.
 
 Hide it for the current session with `[-]` at the right end of the band.
