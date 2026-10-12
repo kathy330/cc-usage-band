@@ -10,7 +10,7 @@ A band above the Claude Code prompt that is always on screen:
 - **≋**: context window used / window size.
 - **◎**: cache hit rate of the last turn (cache reads ÷ all input tokens).
 
-Numbers come from Claude Code's own usage events; nothing is estimated. Works in the terminal. The desktop app shows it once its bundled Claude Code supports mods.
+Numbers come from Claude Code's own usage events; nothing is estimated. Drawn in the terminal, and in Claude Code for VS Code and the desktop app once their bundled Claude Code supports mods.
 
 ## Install
 
@@ -22,5 +22,13 @@ claude plugin install cc-usage-band@cc-usage-band
 ```
 
 Then start a new Claude Code session.
+
+Or, inside a Claude Code session:
+
+```
+/plugin install cc-usage-band --marketplace kathy330/cc-usage-band
+```
+
+Answer `y` to add the marketplace, then press Enter for the user scope.
 
 Hide it for the current session with `[-]` at the right end of the band.
