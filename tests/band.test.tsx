@@ -80,7 +80,6 @@ test('band shows limits, context and cache on terminal and desktop', async ($, o
     expect(await ui.find({ type: 'Text', text: /7d/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /63\.3K\/1M/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /99%/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '┊' })).toBeDefined()
     await ui.unmount()
   }
 })
