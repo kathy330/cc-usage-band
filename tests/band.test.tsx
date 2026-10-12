@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { filled, fmtLeft, fmtTokens, hitRate, hitTone, tone } from '../hooks/register'
+import { elapsedPct, filled, fmtLeft, fmtTokens, hitRate, hitTone, paceTone, tone } from '../hooks/register'
 
 const BAND = {
   component: 'AbovePrompt',
@@ -13,6 +13,27 @@ const BAND = {
     view: {},
   },
 } as const
+
+describe('pace', () => {
+  test('colour follows where usage lands at reset', async () => {
+    const now = Date.parse('2026-10-12T17:07:00+11:00')
+    // 5h window resetting 20:30: 1h37m in, about 32% through
+    const e5 = elapsedPct('five_hour', '2026-10-12T20:30:00+11:00', now)!
+    expect(Math.round(e5)).toBe(32)
+    expect(paceTone(33, e5)).toBe(paceTone(95, 50)) // over pace: red
+    expect(paceTone(20, e5)).not.toBe(paceTone(33, e5)) // well under pace: green
+    expect(paceTone(29, e5)).not.toBe(paceTone(20, e5)) // close to pace: amber
+    // weekly window resetting in 2h: 73% used is under pace
+    const e7 = elapsedPct('seven_day', '2026-10-12T19:00:00+11:00', now)!
+    expect(paceTone(73, e7)).toBe(paceTone(20, e5))
+    // 90% used is red whatever the pace
+    expect(paceTone(90, 99)).toBe(paceTone(33, e5))
+    // unknown window or the first 10% of it: plain thresholds
+    expect(elapsedPct('spend_limit', '2026-10-12T19:00:00Z', now)).toBe(null)
+    expect(paceTone(30, null)).toBe(tone(30))
+    expect(paceTone(30, 5)).toBe(tone(30))
+  })
+})
 
 describe('formatting', () => {
   test('tokens, countdown, bar, hit rate', async () => {

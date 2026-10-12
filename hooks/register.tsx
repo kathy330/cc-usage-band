@@ -42,6 +42,29 @@ const GREEN = '#3daa6e'
 /** Usage colour: calm under 50%, amber to 80%, red above. */
 export const tone = (pct: number): string => (pct >= 80 ? RED : pct >= 50 ? AMBER : TEAL)
 
+const WINDOW_MS: Record<string, number> = { five_hour: 5 * 3_600_000, seven_day: 7 * 86_400_000 }
+
+/** How far through its window a limit is, 0…100; null when the window or reset time is unknown. */
+export const elapsedPct = (kind: string, resetsAt: string | undefined, now: number): number | null => {
+  const win = WINDOW_MS[kind]
+  if (!win || !resetsAt) return null
+  const left = Date.parse(resetsAt) - now
+  if (!Number.isFinite(left)) return null
+  return Math.max(0, Math.min(100, (1 - left / win) * 100))
+}
+
+/**
+ * Pace colour: where usage will land at reset if it keeps this rate.
+ * Green below 85%, amber 85–100%, red once it would run out (or 90% is already used).
+ * In the first 10% of a window the rate says little, so fall back to the plain tone.
+ */
+export const paceTone = (pct: number, elapsed: number | null): string => {
+  if (pct >= 90) return RED
+  if (elapsed === null || elapsed < 10) return tone(pct)
+  const projected = (pct / elapsed) * 100
+  return projected >= 100 ? RED : projected >= 85 ? AMBER : GREEN
+}
+
 /** Cache hit colour: high is good. */
 export const hitTone = (pct: number): string => (pct >= 70 ? GREEN : pct >= 30 ? AMBER : RED)
 
@@ -100,13 +123,31 @@ export const register: Register = on => {
       const pct = Math.round(l.percentUsed)
       const n = filled(pct, 8)
       const left = fmtLeft(l.resetsAt, now)
+      const elapsed = elapsedPct(l.kind, l.resetsAt, now)
+      const color = paceTone(pct, elapsed)
+      // The pace mark: the cell where even use would be by now.
+      const mark = elapsed === null ? -1 : Math.min(7, Math.floor((elapsed / 100) * 8))
+      const cells = Array.from({ length: 8 }, (_, i) =>
+        i === mark ? (
+          <Text key={i} bold>
+            {'┃'}
+          </Text>
+        ) : i < n ? (
+          <Text key={i} color={color}>
+            {'━'}
+          </Text>
+        ) : (
+          <Text key={i} dimColor>
+            {'━'}
+          </Text>
+        ),
+      )
       if (parts.length) parts.push(sep(`s-${l.kind}`))
       parts.push(
         <Text key={l.kind}>
           <Text dimColor>{LABEL[l.kind] ?? l.kind} </Text>
-          <Text color={tone(pct)}>{'━'.repeat(n)}</Text>
-          <Text dimColor>{'━'.repeat(8 - n)}</Text>
-          <Text color={tone(pct)} bold>
+          {cells}
+          <Text color={color} bold>
             {' '}
             {pct}%
           </Text>
