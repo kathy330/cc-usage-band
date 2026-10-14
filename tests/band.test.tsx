@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { elapsedPct, filled, fmtLeft, fmtTokens, hitRate, hitTone, paceTone, tone } from '../hooks/register'
+import { elapsedPct, filled, fmtLeft, fmtModel, fmtTokens, hitRate, hitTone, paceTone, tone } from '../hooks/register'
 
 const BAND = {
   component: 'AbovePrompt',
@@ -50,6 +50,10 @@ describe('formatting', () => {
     expect(hitTone(7)).not.toBe(hitTone(100))
     expect(hitRate({ read: 99, total: 100 })).toBe(99)
     expect(hitRate(null)).toBe(null)
+    expect(fmtModel('claude-opus-5-5')).toBe('Opus 5.5')
+    expect(fmtModel('claude-opus-5-5[1m]')).toBe('Opus 5.5')
+    expect(fmtModel('claude-sonnet-4-20250514')).toBe('Sonnet 4')
+    expect(fmtModel('Opus 5.5 (1M context)')).toBe('Opus 5.5')
   })
 })
 
@@ -57,7 +61,13 @@ test('band shows limits, context and cache on terminal and desktop', async ($, o
   mock.clock(on, { now: Date.parse('2026-10-08T10:00:00Z') })
   on('session.measure', ($, e) => ({ changed: e.changed }))
   on('turn.complete', ($, e) => ({ text: e.answer }))
-  on('ui.render', ($, e) => { const { Text } = $.ui.resolve(e); return <Text key="engine">engine</Text> })
+  on('session.model', () => ({ value: 'claude-opus-5-5[1m]' }) as never)
+  on('turn.step', async function* ($, e) { return { turnId: e.turnId, index: e.index, answer: '', toolUses: [] } as never })
+  on('ui.render', ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    // the engine draws the footer's modes joined by ' & '
+    return e.component === 'SessionMode' ? <Text key="modes">{e.props.modes.join(' & ')}</Text> : <Text key="engine">engine</Text>
+  })
   await $.session.measure({
     context: { tokens: 63_300, window: 1_000_000, percent: 6 },
     rateLimits: [
@@ -66,6 +76,7 @@ test('band shows limits, context and cache on terminal and desktop', async ($, o
     ],
     changed: ['context', 'rateLimits'],
   })
+  for await (const _ of $.turn.step({ turnId: 't1', index: 0, model: 'claude-opus-5-5', effort: 'high', messageCount: 1 } as never)) void _
   await $.turn.complete({
     answer: 'ok',
     durationMs: 10,
@@ -80,7 +91,11 @@ test('band shows limits, context and cache on terminal and desktop', async ($, o
     expect(await ui.find({ type: 'Text', text: /7d/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /63\.3K\/1M/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /99%/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Opus/ })).toBeUndefined()
     await ui.unmount()
+    const footer = await $.ui.mount({ plugin: 'cc-usage-band', surface, component: 'SessionMode', props: { modes: ['focus'] } })
+    expect(await footer.find({ type: 'Text', text: /Opus 5\.5 · high/ })).toBeDefined()
+    await footer.unmount()
   }
 })
 

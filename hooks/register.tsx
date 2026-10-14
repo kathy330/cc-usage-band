@@ -6,6 +6,9 @@ import type { Cache, Snapshot } from '../types'
 const snapAtom = atom({ plugin: 'cc-usage-band', key: 'snap' } as const, null)
 const cacheAtom = atom({ plugin: 'cc-usage-band', key: 'cache' } as const, null)
 const nowAtom = atom({ plugin: 'cc-usage-band', key: 'now' } as const, 0)
+const modelAtom = atom({ plugin: 'cc-usage-band', key: 'model' } as const, null)
+const effortAtom = atom({ plugin: 'cc-usage-band', key: 'effort' } as const, null)
+const styleAtom = atom({ plugin: 'cc-usage-band', key: 'style' } as const, null)
 
 const LABEL: Record<string, string> = { five_hour: '5h', seven_day: '7d', spend_limit: '$' }
 
@@ -26,6 +29,16 @@ export const fmtLeft = (resetsAt: string | undefined, now: number): string => {
   const d = Math.floor(m / 1440)
   const h = Math.floor((m % 1440) / 60)
   return d > 0 ? `${d}d${h}h` : h > 0 ? `${h}h${m % 60}m` : `${m}m`
+}
+
+/** `claude-opus-5-5[1m]` → `Opus 5.5`; anything else is shown as given, minus a trailing `(…)` or `[…]`. */
+export const fmtModel = (m: string): string => {
+  const id = m.match(/^claude-([a-z]+)-(\d+)(?:-(\d{1,2}))?(?:-\d{8})?(?:\[[^\]]*\])?$/i)
+  if (id) {
+    const [, family = '', major, minor] = id
+    return `${family.charAt(0).toUpperCase()}${family.slice(1)} ${major}${minor ? `.${minor}` : ''}`
+  }
+  return m.replace(/\s*[(\[][^)\]]*[)\]]\s*$/, '').trim()
 }
 
 /** Filled cells of a meter, 0…cells. */
@@ -72,6 +85,8 @@ export const hitRate = (c: Cache | null): number | null =>
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const r = await next(e)
+    const m = await $.session.model()
+    await update($, modelAtom, () => m)
     const u = await $.session.usage()
     await update($, snapAtom, () => toSnap(u.context, u.rateLimits))
     const now = await $.clock.now()
@@ -86,9 +101,36 @@ export const register: Register = on => {
 
   on('session.measure', async ($, e, next) => {
     await update($, snapAtom, () => toSnap(e.context, e.rateLimits))
+    const m = await $.session.model()
+    await update($, modelAtom, () => m)
     const now = await $.clock.now()
     await update($, nowAtom, () => now)
     return next(e)
+  })
+
+  // Effort is only known per request: the main loop's last one is what /effort is set to now.
+  on('turn.step', async function* ($, e, next) {
+    if (!e.agentId) {
+      await update($, modelAtom, () => e.model)
+      await update($, effortAtom, () => (e.effort === undefined ? null : String(e.effort)))
+    }
+    return yield* next(e)
+  })
+
+  // Output style rides on each request's system prompt; null is the default style.
+  on('prompt.compose', async ($, e, next) => {
+    await update($, styleAtom, () => e.outputStyle?.name ?? 'default')
+    return next(e)
+  })
+
+  // Model, effort and output style as dim labels at the right of the prompt footer.
+  on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
+    const model = await read($, modelAtom)
+    const effort = await read($, effortAtom)
+    const style = await read($, styleAtom)
+    const mine = [model && fmtModel(model), effort, style].filter((x): x is string => !!x)
+    if (mine.length === 0) return next(e)
+    return next({ ...e, props: { ...e.props, modes: [...e.props.modes, mine.join(' · ')] } })
   })
 
   on('turn.complete', async ($, e, next) => {

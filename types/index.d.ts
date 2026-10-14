@@ -4,6 +4,6 @@ export type Cache = { read: number; total: number }
 
 declare module 'claude-code' {
   interface PluginState {
-    'cc-usage-band': { snap: Snapshot | null; cache: Cache | null; now: number }
+    'cc-usage-band': { snap: Snapshot | null; cache: Cache | null; now: number; model: string | null; effort: string | null; style: string | null }
   }
 }

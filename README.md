@@ -10,6 +10,8 @@ A band above the Claude Code prompt that is always on screen:
 - **≋**: context window used / window size.
 - **◎**: cache hit rate of the last turn (cache reads ÷ all input tokens).
 
+At the right of the footer line under the prompt it adds the model, effort level and output style of the main loop, e.g. `Opus 5.5 · high · default`. Effort is read from the last request sent, so a `/effort` change shows after the next message.
+
 Numbers come from Claude Code's own usage events; nothing is estimated. Drawn in the terminal, and in Claude Code for VS Code and the desktop app once their bundled Claude Code supports mods.
 
 ## Install
